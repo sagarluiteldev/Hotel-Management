@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String         @id @default(cuid())
+  name         String
+  email        String         @unique
+  passwordHash String
+  role         UserRole       @default(MANAGER)
+  membership   Membership     @default(PRO)
+  avatarUrl    String?
+  bio          String?
+  phone        String?
+  tokenVersion Int            @default(1)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  workOrders   WorkOrder[]
+  occupancy    OccupancyLog[]
+  reservations Reservation[]
+  messages     ChatMessage[]  @relation("SentMessages")
+  submissions  Submission[]
+}
+
+model Room {
+  id            String         @id @default(cuid())
+  title         String
+  roomNumber    String?
+  category      String
+  pricePerNight String         @default("$350/night")
+  status        RoomStatus     @default(AVAILABLE)
+  progress      Int            @default(100)
+  accent        String         @default("teal")
+  icon          String         @default("layout")
+  tags          String[]       @default([])
+  description   String
+  workOrders    WorkOrder[]
+  reservations  Reservation[]
+  resources     Resource[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Staff {
+  id          String      @id @default(cuid())
+  name        String
+  title       String
+  department  String      @default("Operations")
+  rating      Float       @default(4.9)
+  bio         String
+  avatarUrl   String?
+  specialty   String      @default("General")
+  nextShift   String?
+  shiftStatus ShiftStatus @default(ON_DUTY)
+  phone       String?
+  email       String?
+  createdAt   DateTime    @default(now())
+}
+
+model WorkOrder {
+  id          String          @id @default(cuid())
+  title       String
+  description String?
+  status      WorkOrderStatus @default(TODO)
+  priority    Priority        @default(MEDIUM)
+  dueAt       DateTime
+  roomId      String?
+  userId      String?
+  room        Room?           @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  user        User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  submissions Submission[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model OccupancyLog {
+  id        String   @id @default(cuid())
+  userId    String
+  dayLabel  String
+  hours     Float    // Represents occupancy percentage (e.g. 84.5%)
+  loggedAt  DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Reservation {
+  id         String            @id @default(cuid())
+  guestName  String
+  guestEmail String?
+  roomId     String?
+  userId     String?
+  status     ReservationStatus @default(CONFIRMED)
+  checkIn    DateTime
+  checkOut   DateTime
+  room       Room?             @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  user       User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt  DateTime          @default(now())
+}
+
+model ChatMessage {
+  id          String   @id @default(cuid())
+  senderId    String
+  receiverId  String?
+  contactName String?
+  text        String
+  senderType  String   @default("user")
+  createdAt   DateTime @default(now())
+  sender      User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+}
+
+model Resource {
+  id        String   @id @default(cuid())
+  title     String
+  fileName  String
+  slug      String   @unique
+  type      String   @default("PDF")
+  fileUrl   String?
+  roomId    String?
+  room      Room?    @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+}
+
+model Submission {
+  id          String     @id @default(cuid())
+  userId      String?
+  workOrderId String?
+  note        String?
+  fileName    String?
+  fileUrl     String?
+  createdAt   DateTime   @default(now())
+  user        User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  workOrder   WorkOrder? @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  STAFF
+  GUEST
+}
+
+enum Membership {
+  FREE
+  PRO
+  TEAM
+}
+
+enum RoomStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+  CLEANING
+}
+
+enum ShiftStatus {
+  ON_DUTY
+  OFF_DUTY
+  ON_LEAVE
+}
+
+enum WorkOrderStatus {
+  TODO
+  IN_PROGRESS
+  SUBMITTED
+  COMPLETED
+}
+
+enum ReservationStatus {
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
